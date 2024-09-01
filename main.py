@@ -259,8 +259,8 @@ spacePressed = False
 Start = False
 cooldown = 0
 BulletType = 1
-Ammo = 20
-BulletCooldown = [20]
+Ammo = [10,10]
+BulletCooldown = [500,500]
 # Create a clock object to control the frame rate
 FPS = 80
 Shake = 0
@@ -304,7 +304,7 @@ while running:
     Start = True
   if keys[pygame.K_1]:
     BulletType = 1
-  elif keys[pygame.K_2] and Ammo >1:
+  elif keys[pygame.K_2] and Ammo[0] > 1:
     BulletType = 2 
 
   if keys[pygame.K_SPACE] and cooldown <= 0:
@@ -314,16 +314,16 @@ while running:
     if BulletType == 1:
       cooldown = 15
     elif BulletType == 2:  
-      Ammo -= 2
+      Ammo[0] -= 2
       cooldown = 30
-      if Ammo < 1:
+      if Ammo[0] < 1:
         BulletType =1
 
-  if Ammo < 1:
+  if Ammo[0] < 1:
     BulletCooldown[0] -= 1
   if BulletCooldown[0] < 1:
     BulletCooldown[0] = 500
-    Ammo = 20
+    Ammo[0] = Ammo[1]
 
   # game things
 
@@ -379,30 +379,34 @@ while running:
     text = font.render(f"{BNUM}", True, (255, 255, 255))
     screen.blit(text,(Bx-10,10))
     screen.blit(i, (Bx,20))
-    Bx += 50
+    Bx += 55
     BNUM += 1
     
 
   # ... other code ...
 
   font = pygame.font.SysFont(None, 15)
-  if Ammo < 1:
+  if Ammo[0] < 1:
     font = pygame.font.SysFont(None, 12)
     text = font.render("RELOADING...", True, (255, 255, 255))
+    screen.blit(text, (250- text.get_width(), 40))  
   else:
     font = pygame.font.SysFont(None, 15)
-    text = font.render(f"{Ammo}", True, (255, 255, 255))
+    text = font.render(f"{Ammo[0]}/{Ammo[1]}", True, (255, 255, 255))
+    screen.blit(text, (230- text.get_width(), 40))  
 
   # Render the text onto the screen
   
-  screen.blit(text, (210, 40))   
+   
   
   if BulletType == 2:
-    pygame.draw.rect(screen, (255, 255, 255), (185, 5, 60, 50), 2)
+    pygame.draw.rect(screen, (255, 255, 255), (190, 5, 55, 50), 2)
   else:
     pygame.draw.rect(screen, (255, 255, 255), (135, 5, 55, 50), 2)
     
-    
+  if Ammo[0] < 1:
+    #pygame.draw.rect(screen, (255, 255, 255), (195, 50, , 5),1)
+    pygame.draw.rect(screen, (255, 255, 255), (200, 50,BulletCooldown[0]/12, 5),0)
 
   # ... rest of your game loop ...  
   # Update the display
