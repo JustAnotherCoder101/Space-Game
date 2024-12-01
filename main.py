@@ -1,4 +1,4 @@
-import pygame
+import pygame 
 import random
 
 # Initialize Pygame
@@ -109,11 +109,15 @@ class Asteroid(pygame.sprite.Sprite):
       self.Health -= damage*2
       self.frozen = False
       self.frozenTimer = 0
+      Asteroid_oof.play()
     else:
       self.Health -= damage
+      Asteroid_oof.play()
     
     if self.Health < 1:
+      Asteroid_kill.play()
       self.kill()
+
 
   def draw_health(self):
     health = (self.Health / self.max_health) * self.Bar_Length
@@ -223,6 +227,41 @@ def Get_HEALTH(Health):
   return list
 
 
+import pygame
+
+# Initialize Pygame and the mixer
+pygame.init()
+pygame.mixer.init()
+
+# Load sounds
+sound_group = []
+
+pew_sound = pygame.mixer.Sound('pew.wav')
+Asteroid_oof = pygame.mixer.Sound('damage.mp3')
+Asteroid_kill = pygame.mixer.Sound('kill.mp3')
+ 
+Player_Damage = pygame.mixer.Sound('Crunch.wav')
+
+sound_group.append(pew_sound)
+sound_group.append(Player_Damage)
+sound_group.append(Asteroid_kill)
+sound_group.append(Asteroid_oof)
+
+pygame.mixer.music.load('background.wav')
+
+# Play background music
+pygame.mixer.music.set_volume(1)
+for i in sound_group:
+  i.set_volume(0.3)
+
+
+pygame.mixer.music.play(-1)
+
+
+
+
+
+
 # Load the images
 BACKGROUND = pygame.image.load("sprites/BACKGROUND.png")
 BACKGROUND = pygame.transform.scale(BACKGROUND, (width, height))
@@ -311,6 +350,8 @@ while running:
     
     Bullets.add(Bullet(SHIP.rect.x + 25, SHIP.rect.y + 40,Bullet_Images,BulletType))
     Bullets.add(Bullet(SHIP.rect.x + 25, SHIP.rect.y,Bullet_Images,BulletType))
+    pew_sound.play()
+
     if BulletType == 1:
       cooldown = 15
     elif BulletType == 2:  
@@ -340,6 +381,7 @@ while running:
       Shake = 10
       Health -= 1
       INV = 40
+      Player_Damage.play()
 
   for i in Asteroids:
     for j in Bullets:
