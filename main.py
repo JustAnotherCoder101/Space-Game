@@ -10,6 +10,7 @@ height = 400
 screen = pygame.display.set_mode((width, height))
 #Sprites
 
+SCORE = 0
 
 class Ship(pygame.sprite.Sprite):
 
@@ -42,9 +43,11 @@ class Ship(pygame.sprite.Sprite):
 
 
 class Asteroid(pygame.sprite.Sprite):
-
+  global SCORE
+  
   def __init__(self,type):
     super().__init__()
+    
     self.type = type
     self.Oimage = pygame.image.load("sprites/asteroid.png")
     if self.type == 1:
@@ -54,6 +57,7 @@ class Asteroid(pygame.sprite.Sprite):
       self.Health = 80
       self.max_health = 80
       self.Bar_Length = 50
+      self.S = 1
     elif self.type == 2:
       self.Oimage = pygame.transform.rotate(self.Oimage, 180)
       self.image = pygame.transform.scale(self.Oimage, (170, 90))
@@ -61,6 +65,7 @@ class Asteroid(pygame.sprite.Sprite):
       self.Health = 360
       self.max_health = 360
       self.Bar_Length = 75
+      self.S = 3
     
     self.rect = self.image.get_rect()
     self.x = width
@@ -72,6 +77,7 @@ class Asteroid(pygame.sprite.Sprite):
 
 
   def update(self):
+    
     
     if self.frozen:
       self.frozenTimer -= 1
@@ -105,6 +111,7 @@ class Asteroid(pygame.sprite.Sprite):
       self.draw_health()
       
   def damage(self,damage):
+    global SCORE
     if self.frozen:
       self.Health -= damage*2
       self.frozen = False
@@ -116,6 +123,7 @@ class Asteroid(pygame.sprite.Sprite):
     
     if self.Health < 1:
       Asteroid_kill.play()
+      SCORE += self.S
       self.kill()
 
 
@@ -227,7 +235,6 @@ def Get_HEALTH(Health):
   return list
 
 
-import pygame
 
 # Initialize Pygame and the mixer
 pygame.init()
@@ -256,10 +263,6 @@ for i in sound_group:
 
 
 pygame.mixer.music.play(-1)
-
-
-
-
 
 
 # Load the images
@@ -304,7 +307,9 @@ BulletCooldown = [500,500]
 FPS = 80
 Shake = 0
 clock = pygame.time.Clock()
-    
+font = pygame.font.Font(None, 36)
+
+SCORE = 0
 
 # Loop
 print("Done")
@@ -450,7 +455,11 @@ while running:
     #pygame.draw.rect(screen, (255, 255, 255), (195, 50, , 5),1)
     pygame.draw.rect(screen, (255, 255, 255), (200, 50,BulletCooldown[0]/12, 5),0)
 
-  # ... rest of your game loop ...  
+  # score text
+  Score_text = font.render(f"Score: {SCORE}",True,(0,0,0))
+  screen.blit(Score_text, (600,20))
+
+  
   # Update the display
   pygame.display.flip()
   clock.tick(FPS)
