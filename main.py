@@ -307,7 +307,9 @@ BulletCooldown = [500,500]
 FPS = 80
 Shake = 0
 clock = pygame.time.Clock()
-font = pygame.font.Font(None, 36)
+FSIZE = 56
+Score_Font = pygame.font.SysFont(None, 40)  # or pygame.font.Font("path/to/font.ttf", font_size)
+
 
 SCORE = 0
 
@@ -344,6 +346,8 @@ while running:
 
   
   cooldown -= 1
+  if keys[pygame.K_8]:
+    SCORE += 1
   if keys[pygame.K_0]:
     Start = True
   if keys[pygame.K_1]:
@@ -456,8 +460,9 @@ while running:
     pygame.draw.rect(screen, (255, 255, 255), (200, 50,BulletCooldown[0]/12, 5),0)
 
   # score text
-  Score_text = font.render(f"Score: {SCORE}",True,(0,0,0))
-  screen.blit(Score_text, (600,20))
+  font_str = len(str(SCORE))
+  Score_text = Score_Font.render(f"Score: {SCORE}",True,(255,255,255))
+  screen.blit(Score_text, (680-(20*font_str),10))
 
   
   # Update the display
