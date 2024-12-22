@@ -234,10 +234,16 @@ def Get_HEALTH(Health):
 
   return list
 
+def CHANGE_SOUND(num):
+  pygame.mixer.music.stop()
+  if num == 0:
+    pygame.mixer.music.load('background.wav')
+  elif num == 1:
+    pygame.mixer.music.load('BOSSFIGHT1.mp3')
+  pygame.mixer.music.play(-1)
+  
 
 
-# Initialize Pygame and the mixer
-pygame.init()
 pygame.mixer.init()
 
 # Load sounds
@@ -254,16 +260,7 @@ sound_group.append(Player_Damage)
 sound_group.append(Asteroid_kill)
 sound_group.append(Asteroid_oof)
 
-pygame.mixer.music.load('background.wav')
-
-# Play background music
-pygame.mixer.music.set_volume(1)
-for i in sound_group:
-  i.set_volume(0.3)
-
-
-pygame.mixer.music.play(-1)
-
+CHANGE_SOUND(0)
 
 # Load the images
 BACKGROUND = pygame.image.load("sprites/BACKGROUND.png")
@@ -313,6 +310,10 @@ Score_Font = pygame.font.SysFont(None, 40)  # or pygame.font.Font("path/to/font.
 
 SCORE = 0
 
+MUSIC = 1
+
+MC = True
+
 # Loop
 print("Done")
 
@@ -348,6 +349,20 @@ while running:
   cooldown -= 1
   if keys[pygame.K_8]:
     SCORE += 1
+  if keys[pygame.K_m]: 
+     if MC:
+       MC = False
+       if MUSIC == 0:
+          CHANGE_SOUND(0)
+          MUSIC = 1
+
+       else:
+          CHANGE_SOUND(1)
+          MUSIC = 0
+  else:
+    MC = True     
+      
+       
   if keys[pygame.K_0]:
     Start = True
   if keys[pygame.K_1]:
