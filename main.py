@@ -11,6 +11,7 @@ screen = pygame.display.set_mode((width, height))
 #Sprites
 
 SCORE = 0
+ASTEROIDSPAWN = True
 
 class Ship(pygame.sprite.Sprite):
 
@@ -74,6 +75,7 @@ class Asteroid(pygame.sprite.Sprite):
     self.rect.y = self.y
     self.frozen = False
     self.frozenTimer = 0
+    self.mask = pygame.mask.from_surface(self.image)
 
 
   def update(self):
@@ -168,6 +170,7 @@ class Bullet(pygame.sprite.Sprite):
     self.AStage = -1
     self.ATimer = 0
     self.Images = Images
+    self.mask = pygame.mask.from_surface(self.image)
     
     
 
@@ -197,7 +200,72 @@ class Bullet(pygame.sprite.Sprite):
 
   def collide(self):
     self.active = False  
-  
+
+
+
+class BOSS1(pygame.sprite.Sprite):
+    global ASTEROIDSPAWN
+    def __init__(self):
+      super().__init__()
+      self.Oimage = pygame.image.load("sprites/Boss 1/Boss 1.png")
+      self.image = pygame.transform.scale(self.Oimage, (135*0.75, 220*0.75))
+      self.rect = self.image.get_rect()
+      self.rect.x = width
+      self.rect.y = height // 2 - self.rect.height // 2
+      self.speed = 5
+      self.Health = 1000
+      self.max_health = 1000
+      self.Bar_Length = 150
+      self.mask = pygame.mask.from_surface(self.image)
+      self.action = 0
+      self.actionTimer = 60
+
+    def update(self):
+      if self.rect.x > width - self.rect.width - 50:
+        self.rect.x -= self.speed
+      self.draw_health()
+      if self.actionTimer > 0:
+        self.actionTimer -= 1
+      else:
+        self.action = random.randint(1, 3)
+        self.actionTimer = 50
+      if self.action == 1:
+        self.move("up")  
+      if self.action == 2:
+        self.move("down")     
+      if self.action == 3:
+        self.move("mid")         
+
+    def draw_health(self):
+      health = (self.Health / self.max_health) * self.Bar_Length * 2
+      pygame.draw.rect(screen, (0, 0, 0), (width // 2 - self.Bar_Length-5, 10,self.Bar_Length * 2 + 10, 30))
+      pygame.draw.rect(screen, (255, 0, 0), (width // 2 - self.Bar_Length,20, self.Bar_Length * 2, 10))
+      pygame.draw.rect(screen, (0, 255, 0), (width // 2 - self.Bar_Length, 20,health, 10))
+
+    def damage(self, damage):
+      global ASTEROIDSPAWN
+      self.Health -= damage
+      if self.Health < 1:
+        self.kill()
+        ASTEROIDSPAWN = True
+
+    def shoot(self):
+      bullet = Bullet(self.rect.x, self.rect.y + self.rect.height // 2, Bullet_Images, 1)
+      Bullets.add(bullet)
+      pew_sound.play()
+
+    def move(self, direction):
+      if direction == "start" and self.rect.x > width - self.rect.width - 50:
+        self.rect.x -= self.speed
+      if direction == "up" and self.rect.y > 20:
+        self.rect.y -= self.speed
+      if direction == "down" and self.rect.y < 380 - self.rect.height:
+        self.rect.y += self.speed
+      if direction == "mid" and self.rect.y != 200-self.rect.height // 2:
+        if self.rect.y > 200-self.rect.height // 2:
+          self.rect.y -= self.speed
+        if self.rect.y < 200-self.rect.height // 2:
+          self.rect.y += self.speed
 
 def Get_HEALTH(Health):
   Full = pygame.image.load("sprites/Heart/Full.png")
@@ -314,6 +382,9 @@ MUSIC = 1
 
 MC = True
 
+BOSSCOUNT = 0
+
+Boss = pygame.sprite.Group()
 # Loop
 print("Done")
 
@@ -324,7 +395,7 @@ while running:
       running = False
 
   
-  if Start:
+  if Start and ASTEROIDSPAWN:
     type = random.randint(1,6)
     type = 2 if type == 1 else 1
     if Timer <= 0:
@@ -359,10 +430,20 @@ while running:
        else:
           CHANGE_SOUND(1)
           MUSIC = 0
+          Boss.add(BOSS1())
+          ASTEROIDSPAWN = False
+
   else:
     MC = True     
       
-       
+  if SCORE > 50 and BOSSCOUNT < 1:
+    CHANGE_SOUND(1)
+    MUSIC = 0
+    Boss.add(BOSS1())
+    ASTEROIDSPAWN = False
+    BOSSCOUNT += 1
+
+
   if keys[pygame.K_0]:
     Start = True
   if keys[pygame.K_1]:
@@ -399,6 +480,7 @@ while running:
   Player.update()
   Asteroids.update()
   Bullets.update()
+  Boss.update()
 
   for i in Player:
     if pygame.sprite.spritecollideany(i, Asteroids) and INV < 1:
@@ -409,7 +491,7 @@ while running:
 
   for i in Asteroids:
     for j in Bullets:
-      if pygame.sprite.collide_rect(i, j):
+      if pygame.sprite.collide_mask(i, j):
         if j.active:
           if j.type == 1:
             i.damage(j.damage)
@@ -418,18 +500,26 @@ while running:
             i.damage(j.damage)
             i.frozen = True
             i.frozenTimer = 400
-            j.collide()  
+            j.collide()
+
+  for boss in Boss:
+    for j in Bullets:
+      if pygame.sprite.collide_mask(boss, j):
+        if j.active:
+          boss.damage(j.damage)
+          j.collide()
 
         else:
           pass
   for i in Bullets:
-    if pygame.sprite.spritecollideany(i, Asteroids):
+    if pygame.sprite.spritecollideany(i, Asteroids, pygame.sprite.collide_mask) or pygame.sprite.spritecollideany(i, Boss, pygame.sprite.collide_mask):
       i.active = False
       
   
   Player.draw(screen)
   Asteroids.draw(screen)
   Bullets.draw(screen)
+  Boss.draw(screen)
 
   x = 30
   for i in Get_HEALTH(Health):
