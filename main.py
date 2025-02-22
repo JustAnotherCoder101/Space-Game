@@ -31,10 +31,14 @@ class Explode(pygame.sprite.Sprite):
     self.Msize = size
     self.OY = self.rect.y
     self.OX = self.rect.x
+    if size == 200:
+      self.type = 2
+    else:
+      self.type = 1  
   
   def update(self):
 
-    self.image = pygame.transform.scale(self.image, (self.size, self.size))
+    self.image = pygame.transform.scale(self.Oimage, (self.size, self.size))
     if self.size > self.Msize:
       self.expanding = False
       self.retracting = True
@@ -47,8 +51,8 @@ class Explode(pygame.sprite.Sprite):
       self.rect.y = self.OY - (self.size / 2)
       self.rect.x = self.OX - (self.size / 2)
 
-      #self.rect.x += 5
-      self.size -= 10
+      
+      self.size -= 5 /self.type
     if self.retracting and self.size < 10:
       self.kill()
 
