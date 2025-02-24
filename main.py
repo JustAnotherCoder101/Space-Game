@@ -13,6 +13,50 @@ screen = pygame.display.set_mode((width, height))
 SCORE = 0
 ASTEROIDSPAWN = True
 
+
+
+class Explode(pygame.sprite.Sprite):
+  def __init__(self, x, y, size):
+    super().__init__()
+    self.Oimage = pygame.image.load(f"sprites/Bullets/Explosion{random.randint(1,2)}.png")
+    self.image = pygame.transform.scale(self.Oimage, (50, 50))
+    self.rect = self.image.get_rect()
+    self.rect.x = x
+    self.rect.y = y
+    self.exploding = True
+    self.expanding = True
+    self.retracting = False
+    self.Timer = 50
+    self.size = 50
+    self.Msize = size
+    self.OY = self.rect.y
+    self.OX = self.rect.x
+    if size == 200:
+      self.type = 2
+    else:
+      self.type = 1  
+  
+  def update(self):
+
+    self.image = pygame.transform.scale(self.Oimage, (self.size, self.size))
+    if self.size > self.Msize:
+      self.expanding = False
+      self.retracting = True
+    if self.expanding:
+      self.rect.y = self.OY - (self.size / 2)
+
+      self.rect.x = self.OX - (self.size / 2)
+      self.size += 10
+    else:
+      self.rect.y = self.OY - (self.size / 2)
+      self.rect.x = self.OX - (self.size / 2)
+
+      
+      self.size -= 5 /self.type
+    if self.retracting and self.size < 10:
+      self.kill()
+
+
 class Ship(pygame.sprite.Sprite):
 
   def __init__(self):
@@ -59,6 +103,7 @@ class Asteroid(pygame.sprite.Sprite):
       self.max_health = 80
       self.Bar_Length = 50
       self.S = 1
+      self.size = 100
     elif self.type == 2:
       self.Oimage = pygame.transform.rotate(self.Oimage, 180)
       self.image = pygame.transform.scale(self.Oimage, (170, 90))
@@ -67,6 +112,7 @@ class Asteroid(pygame.sprite.Sprite):
       self.max_health = 360
       self.Bar_Length = 75
       self.S = 3
+      self.size = 200
     
     self.rect = self.image.get_rect()
     self.x = width
@@ -126,6 +172,7 @@ class Asteroid(pygame.sprite.Sprite):
     if self.Health < 1:
       Asteroid_kill.play()
       SCORE += self.S
+      Explosions.add(Explode(self.rect.centerx, self.rect.centery,self.size))
       self.kill()
 
 
@@ -343,6 +390,7 @@ print(len(Bullet_Images))
 SHIP = Ship()
 Asteroids = pygame.sprite.Group()
 Player = pygame.sprite.Group()
+Explosions = pygame.sprite.Group()
 
 Bullets = pygame.sprite.Group()
 Player.add(SHIP)
@@ -481,6 +529,7 @@ while running:
   Asteroids.update()
   Bullets.update()
   Boss.update()
+  Explosions.update()
 
   for i in Player:
     if pygame.sprite.spritecollideany(i, Asteroids) and INV < 1:
@@ -520,6 +569,7 @@ while running:
   Asteroids.draw(screen)
   Bullets.draw(screen)
   Boss.draw(screen)
+  Explosions.draw(screen)
 
   x = 30
   for i in Get_HEALTH(Health):
