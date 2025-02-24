@@ -18,7 +18,7 @@ ASTEROIDSPAWN = True
 class Explode(pygame.sprite.Sprite):
   def __init__(self, x, y, size):
     super().__init__()
-    self.Oimage = pygame.image.load("sprites/Bullets/Explosion.png")
+    self.Oimage = pygame.image.load(f"sprites/Bullets/Explosion{random.randint(1,2)}.png")
     self.image = pygame.transform.scale(self.Oimage, (50, 50))
     self.rect = self.image.get_rect()
     self.rect.x = x
