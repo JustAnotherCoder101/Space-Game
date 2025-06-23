@@ -1,5 +1,6 @@
 import pygame 
 import random
+import math
 
 # Initialize Pygame
 pygame.init()
@@ -30,7 +31,7 @@ class Explode(pygame.sprite.Sprite):
     self.size = 50
     self.Msize = size
     self.OY = self.rect.y
-    self.OX = self.rect.x
+    self.OX = self.rect.x        
     if size == 200:
       self.type = 2
     else:
@@ -140,8 +141,7 @@ class Asteroid(pygame.sprite.Sprite):
         self.rect.y = self.y + random.randint(-2, 2)
       if self.frozenTimer < 1:
         self.frozen = False
-        self.frozenTimer = 0
-      print(self.frozenTimer)  
+        self.frozenTimer = 0             
       
     elif not self.frozen:  
       self.Oimage = pygame.image.load("sprites/asteroid.png")
@@ -187,8 +187,72 @@ class Asteroid(pygame.sprite.Sprite):
     pygame.draw.rect(screen, (0, 255, 0),
                      (self.rect.x, self.rect.y - 10, health, 5))
 
-    
-    
+class Orb(pygame.sprite.Sprite):
+    def __init__(self, x, y, dx, dy, speed=5):
+        super().__init__()
+        self.image = pygame.image.load("sprites/Boss 1/Orb.png")
+        self.image = pygame.transform.scale(self.image, (20, 20))
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        # Normalize direction
+        length = math.hypot(dx, dy)
+        if length == 0:
+            self.dx, self.dy = 1, 0
+        else:
+            self.dx = dx / length
+            self.dy = dy / length
+        self.speed = speed
+        self.Health = 1
+        self.angle = math.atan2(self.dy, self.dx)
+        # Rotate the image to point in the direction of travel
+        self.image = pygame.transform.rotate(self.image, -math.degrees(self.angle))
+        self.mask = pygame.mask.from_surface(self.image)
+
+    def update(self):
+        self.rect.x += int(self.dx * self.speed)
+        self.rect.y += int(self.dy * self.speed)
+        # Remove if out of screen
+        if (self.rect.x < -self.rect.width or self.rect.x > width or
+            self.rect.y < -self.rect.height or self.rect.y > height):
+            self.kill()
+
+class Missile(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.Oimage = pygame.image.load("sprites/Boss 1/Missile.png")
+        self.image = pygame.transform.scale(self.Oimage, (50, 50))  # Scale down the image
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.speed = random.randint(3,9)
+        self.Health = 1
+        self.mask = pygame.mask.from_surface(self.image)
+
+    def update(self):
+        # Calculate the angle to the player
+        dx = SHIP.rect.x - self.rect.x
+        dy = SHIP.rect.y - self.rect.y
+        angle = math.atan2(dy, dx)
+        
+        # Rotate the image to point towards the player
+        self.image = pygame.transform.rotate(self.Oimage, -math.degrees(angle))
+        self.rect = self.image.get_rect(center=self.rect.center)
+        
+        # Move the missile towards the player
+        self.rect.x += int(self.speed * math.cos(angle))
+        self.rect.y += int(self.speed * math.sin(angle))
+        
+        if self.rect.x < -self.rect.width or self.rect.y < -self.rect.height or self.rect.y > height:
+            self.kill()
+
+    def damage(self, damage):
+        global SCORE
+        self.Health -= damage
+        if self.Health < 1:
+            Asteroid_kill.play()
+            Explosions.add(Explode(self.rect.centerx, self.rect.centery, 50))
+            self.kill()
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -248,71 +312,148 @@ class Bullet(pygame.sprite.Sprite):
   def collide(self):
     self.active = False  
 
-
+ 
 
 class BOSS1(pygame.sprite.Sprite):
-    global ASTEROIDSPAWN
-    def __init__(self):
-      super().__init__()
-      self.Oimage = pygame.image.load("sprites/Boss 1/Boss 1.png")
-      self.image = pygame.transform.scale(self.Oimage, (135*0.75, 220*0.75))
-      self.rect = self.image.get_rect()
-      self.rect.x = width
-      self.rect.y = height // 2 - self.rect.height // 2
-      self.speed = 5
-      self.Health = 1000
-      self.max_health = 1000
-      self.Bar_Length = 150
-      self.mask = pygame.mask.from_surface(self.image)
-      self.action = 0
-      self.actionTimer = 60
+  global ASTEROIDSPAWN
+  def __init__(self):
+    super().__init__()
+    self.Oimage = pygame.image.load("sprites/Boss 1/Boss 1.png")
+    self.Simage = pygame.image.load("sprites/Boss 1/Hatch.png")
+    self.image = pygame.transform.scale(self.Oimage, (int(135*0.75), int(220*0.75)))
+    self.rect = self.image.get_rect()
+    self.rect.x = width
+    self.rect.y = height // 2 - self.rect.height // 2
+    self.speed = 5
+    self.Health = 3000
+    self.max_health = 3000
+    self.Bar_Length = 150
+    self.mask = pygame.mask.from_surface(self.image)
+    self.action = 0
+    self.movingTimer = 60
+    self.actionTimer = 60
+    self.moving = 0
+    self.TIMER = 0
+    self.DESPERATION = 1
+    self.orb_attack_active = False
+    self.orb_attack_count = 0
+    self.orb_attack_timer = 0
 
-    def update(self):
-      if self.rect.x > width - self.rect.width - 50:
-        self.rect.x -= self.speed
-      self.draw_health()
-      if self.actionTimer > 0:
-        self.actionTimer -= 1
-      else:
-        self.action = random.randint(1, 3)
-        self.actionTimer = 50
+  def orb_attack(self):
+    """Handles the orb attack: 5 bursts of 5 orbs over 15 seconds."""
+    self.orb_attack_timer += 1
+    # Every 3 seconds (approx 240 frames at 80 FPS), spawn 5 orbs
+    if self.orb_attack_timer % (FPS * 3 // 5) == 0 and self.orb_attack_count < 8:
+      # Spawn orbs at the boss's left side, at varying angles to the left
+      centerx = self.rect.left  # left edge of boss
+      centery = self.rect.centery
+      # Angles: spread from -30 to +30 degrees (all going left)
+      for i in range(5):
+
+        offset = random.randint(-1*i, 1*i)
+        angle_deg = -30 + i * 15  # -30, -15, 0, 15, 30
+        angle_rad = math.radians(angle_deg)
+        dx = math.cos(angle_rad) * -1  # negative x for leftward
+        dy = math.sin(angle_rad)
+        Orbs.add(Orb(centerx, centery, dx, dy, speed=6))
+      self.orb_attack_count += 1
+    if self.orb_attack_count >= 5:
+      self.orb_attack_active = False
+      self.orb_attack_count = 0
+      self.orb_attack_timer = 0
+
+  def update(self):
+    self.TIMER += 1
+    if self.TIMER > 2 * FPS:
+      self.TIMER = 0
+    if self.rect.x > width - self.rect.width - 50:
+      self.rect.x = width - self.rect.width - 50
+      self.rect.x -= self.speed
+
+    self.draw_health()
+
+    if self.movingTimer > 0:
+      self.movingTimer -= 1
+    else:
+      self.moving = random.randint(1, 4)
+      self.movingTimer = 50
+
+    if self.moving == 1:
+      self.move("up")
+    elif self.moving == 2:
+      self.move("down")
+    elif self.moving == 3:
+      self.move("mid")
+
+    # ATTACKS
+    if self.actionTimer > 0:
+      self.actionTimer -= 1
+    else:
+      if self.DESPERATION == 1:
+        #self.action = random.randint(0, 3)
+        self.action = 3
+      elif self.DESPERATION == 2:
+        self.action = random.randint(0, 3)
+
+      self.TIMER = 0
+
       if self.action == 1:
-        self.move("up")  
-      if self.action == 2:
-        self.move("down")     
-      if self.action == 3:
-        self.move("mid")         
+        self.actionTimer = 50
+      elif self.action == 2:
+        self.actionTimer = 100
+      elif self.action == 3:
+        # Start orb attack: 5 bursts over 15 seconds
+        self.orb_attack_active = True
+        self.orb_attack_count = 0
+        self.orb_attack_timer = 0
+        self.actionTimer = FPS * 10 # 15 seconds
 
-    def draw_health(self):
-      health = (self.Health / self.max_health) * self.Bar_Length * 2
-      pygame.draw.rect(screen, (0, 0, 0), (width // 2 - self.Bar_Length-5, 10,self.Bar_Length * 2 + 10, 30))
-      pygame.draw.rect(screen, (255, 0, 0), (width // 2 - self.Bar_Length,20, self.Bar_Length * 2, 10))
-      pygame.draw.rect(screen, (0, 255, 0), (width // 2 - self.Bar_Length, 20,health, 10))
+    if self.action == 1:
+      if self.TIMER in [0, 50, 100]:
+        self.shoot(1)
+    elif self.action == 2:
+      self.shoot(2)
 
-    def damage(self, damage):
-      global ASTEROIDSPAWN
-      self.Health -= damage
-      if self.Health < 1:
-        self.kill()
-        ASTEROIDSPAWN = True
+    # Call orb attack if active
+    if self.orb_attack_active:
+      self.orb_attack()
 
-    def shoot(self):
-      bullet = Bullet(self.rect.x, self.rect.y + self.rect.height // 2, Bullet_Images, 1)
-      Bullets.add(bullet)
-      pew_sound.play()
+  def draw_health(self):
+    health = (self.Health / self.max_health) * self.Bar_Length * 2
+    pygame.draw.rect(screen, (0, 0, 0), (width // 2 - self.Bar_Length - 5, 10, self.Bar_Length * 2 + 10, 30))
+    pygame.draw.rect(screen, (255, 0, 0), (width // 2 - self.Bar_Length, 20, self.Bar_Length * 2, 10))
+    pygame.draw.rect(screen, (0, 255, 0), (width // 2 - self.Bar_Length, 20, health, 10))
 
-    def move(self, direction):
-      if direction == "start" and self.rect.x > width - self.rect.width - 50:
-        self.rect.x -= self.speed
-      if direction == "up" and self.rect.y > 20:
+  def damage(self, damage):
+    global ASTEROIDSPAWN
+    global BOSSCOUNT
+    self.Health -= damage
+    if self.Health < 1:
+      self.kill()
+      ASTEROIDSPAWN = True
+      BOSSCOUNT -= 1
+
+  def shoot(self, type):
+    if type == 1:
+      self.image = pygame.transform.scale(self.Simage, (int(135*0.75), int(220*0.75)))
+      self.image = pygame.transform.scale(self.Oimage, (int(135*0.75), int(220*0.75)))
+      for i in range(self.DESPERATION * 5):
+        Missiles.add(Missile(self.rect.centerx, self.rect.centery + (i - 1) * 50))
+    elif type == 2:
+      pass
+
+  def move(self, direction):
+    if direction == "start" and self.rect.x > width - self.rect.width - 50:
+      self.rect.x -= self.speed
+    if direction == "up" and self.rect.y > 20:
+      self.rect.y -= self.speed
+    if direction == "down" and self.rect.y < 380 - self.rect.height:
+      self.rect.y += self.speed
+    if direction == "mid" and self.rect.y != 200 - self.rect.height // 2:
+      if self.rect.y > 200 - self.rect.height // 2:
         self.rect.y -= self.speed
-      if direction == "down" and self.rect.y < 380 - self.rect.height:
+      if self.rect.y < 200 - self.rect.height // 2:
         self.rect.y += self.speed
-      if direction == "mid" and self.rect.y != 200-self.rect.height // 2:
-        if self.rect.y > 200-self.rect.height // 2:
-          self.rect.y -= self.speed
-        if self.rect.y < 200-self.rect.height // 2:
-          self.rect.y += self.speed
 
 def Get_HEALTH(Health):
   Full = pygame.image.load("sprites/Heart/Full.png")
@@ -367,7 +508,13 @@ sound_group = []
 pew_sound = pygame.mixer.Sound('pew.wav')
 Asteroid_oof = pygame.mixer.Sound('damage.mp3')
 Asteroid_kill = pygame.mixer.Sound('kill.mp3')
- 
+# Set volume for individual sounds
+pew_sound.set_volume(0.5)  # Set to 50% volume
+Asteroid_oof.set_volume(0.8)  # Set to 80% volume
+Asteroid_kill.set_volume(0.5)  # Full volume
+
+
+
 Player_Damage = pygame.mixer.Sound('Crunch.wav')
 
 sound_group.append(pew_sound)
@@ -391,6 +538,8 @@ SHIP = Ship()
 Asteroids = pygame.sprite.Group()
 Player = pygame.sprite.Group()
 Explosions = pygame.sprite.Group()
+Missiles = pygame.sprite.Group()
+Orbs = pygame.sprite.Group()
 
 Bullets = pygame.sprite.Group()
 Player.add(SHIP)
@@ -432,6 +581,8 @@ MC = True
 
 BOSSCOUNT = 0
 
+Timer2 = -1.0
+
 Boss = pygame.sprite.Group()
 # Loop
 print("Done")
@@ -441,6 +592,10 @@ while running:
   for event in pygame.event.get():
     if event.type == pygame.QUIT:
       running = False
+  Timer2 += 1.0 / FPS
+  if Timer2 > 1.0:
+    Timer2 = -1.0
+        
 
   
   if Start and ASTEROIDSPAWN:
@@ -467,7 +622,15 @@ while running:
   
   cooldown -= 1
   if keys[pygame.K_8]:
-    SCORE += 1
+    #Missiles.add(Missile(width, random.randint(0, height - 100)))
+    SCORE = 51
+  if keys[pygame.K_9]:
+      # Spawn five orbs in different directions
+      Orbs.add(Orb(width // 2, height // 2, -1, 0, speed=5))      # West
+      Orbs.add(Orb(width // 2, height // 2, -1, -1, speed=5))     # North West
+      Orbs.add(Orb(width // 2, height // 2, -2, -1, speed=5))     # North West West
+      Orbs.add(Orb(width // 2, height // 2, -1, 1, speed=5))      # South West
+      Orbs.add(Orb(width // 2, height // 2, -2, 1, speed=5))      # South West West
   if keys[pygame.K_m]: 
      if MC:
        MC = False
@@ -489,7 +652,7 @@ while running:
     MUSIC = 0
     Boss.add(BOSS1())
     ASTEROIDSPAWN = False
-    BOSSCOUNT += 1
+    BOSSCOUNT += 5 
 
 
   if keys[pygame.K_0]:
@@ -530,6 +693,8 @@ while running:
   Bullets.update()
   Boss.update()
   Explosions.update()
+  Missiles.update()
+  Orbs.update()
 
   for i in Player:
     if pygame.sprite.spritecollideany(i, Asteroids) and INV < 1:
@@ -537,6 +702,19 @@ while running:
       Health -= 1
       INV = 40
       Player_Damage.play()
+
+  for i in Player:
+    if pygame.sprite.spritecollideany(i, Missiles) and INV < 1:
+      Shake = 10
+      Health -= 1
+      INV = 40
+      Player_Damage.play()
+  for i in Player:
+    if pygame.sprite.spritecollideany(i, Orbs) and INV < 1:
+      Shake = 10
+      Health -= 1
+      INV = 40
+      Player_Damage.play()    
 
   for i in Asteroids:
     for j in Bullets:
@@ -550,6 +728,20 @@ while running:
             i.frozen = True
             i.frozenTimer = 400
             j.collide()
+             
+  for i in Missiles:
+    for j in Bullets:
+      if pygame.sprite.collide_mask(i, j):
+        if j.active:
+          if j.type == 1:
+            i.damage(j.damage)
+            #j.collide()
+          else:
+            i.damage(j.damage)
+            i.frozen = True
+            i.frozenTimer = 400
+            #j.collide()          
+        
 
   for boss in Boss:
     for j in Bullets:
@@ -570,6 +762,8 @@ while running:
   Bullets.draw(screen)
   Boss.draw(screen)
   Explosions.draw(screen)
+  Missiles.draw(screen)
+  Orbs.draw(screen)
 
   x = 30
   for i in Get_HEALTH(Health):
