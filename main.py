@@ -339,25 +339,29 @@ class BOSS1(pygame.sprite.Sprite):
     self.orb_attack_count = 0
     self.orb_attack_timer = 0
 
-  def orb_attack(self):
+  def orb_attack(self, thing, type=1):
+    
+    dir = 1
     """Handles the orb attack: 5 bursts of 5 orbs over 15 seconds."""
     self.orb_attack_timer += 1
-    # Every 3 seconds (approx 240 frames at 80 FPS), spawn 5 orbs
-    if self.orb_attack_timer % (FPS * 3 // 5) == 0 and self.orb_attack_count < 8:
-      # Spawn orbs at the boss's left side, at varying angles to the left
+    speed = 10 if type == 1 else 60
+    length = 15 if type == 1 else 100  # seconds for the attack duration
+    if self.orb_attack_timer % (FPS // speed) == 0 and self.orb_attack_count < length:
+
+
       centerx = self.rect.left  # left edge of boss
       centery = self.rect.centery
       # Angles: spread from -30 to +30 degrees (all going left)
-      for i in range(5):
+      for i in range(4):
 
-        offset = random.randint(-1*i, 1*i)
-        angle_deg = -30 + i * 15  # -30, -15, 0, 15, 30
+        
+        angle_deg = -30 + i * 20 + thing  # -30, -15, 0, 15, 30
         angle_rad = math.radians(angle_deg)
         dx = math.cos(angle_rad) * -1  # negative x for leftward
         dy = math.sin(angle_rad)
         Orbs.add(Orb(centerx, centery, dx, dy, speed=6))
       self.orb_attack_count += 1
-    if self.orb_attack_count >= 5:
+    if self.orb_attack_count >= length:
       self.orb_attack_active = False
       self.orb_attack_count = 0
       self.orb_attack_timer = 0
@@ -402,6 +406,8 @@ class BOSS1(pygame.sprite.Sprite):
       elif self.action == 2:
         self.actionTimer = 100
       elif self.action == 3:
+        offset = 0
+        dir = 1
         # Start orb attack: 5 bursts over 15 seconds
         self.orb_attack_active = True
         self.orb_attack_count = 0
@@ -416,7 +422,17 @@ class BOSS1(pygame.sprite.Sprite):
 
     # Call orb attack if active
     if self.orb_attack_active:
-      self.orb_attack()
+      # Ensure offset is always defined
+      offset = 0
+      dir = 1
+      if self.orb_attack_count % 5 == 0:
+        # Change direction every 5 bursts
+        dir = random.randint(1, 2)
+      if dir == 1:
+        offset += 1
+      if dir == 2:
+        offset = 2 
+      self.orb_attack(1, offset)
 
   def draw_health(self):
     health = (self.Health / self.max_health) * self.Bar_Length * 2
